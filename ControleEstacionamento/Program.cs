@@ -8,7 +8,7 @@ builder.Services.AddControllersWithViews();
 
 // Adiciona o contexto do banco de dados com SQLite
 builder.Services.AddDbContext<EstacionamentoContext>(options =>
-    options.UseSqlite("Data Source=estacionamento.db"));
+    options.UseSqlite("Data Source=parking.db"));
 
 var app = builder.Build();
 
