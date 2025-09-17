@@ -1,4 +1,4 @@
-using System;
+Ôªøusing System;
 using System.Linq;
 using ControleEstacionamento.Data;
 using ControleEstacionamento.Models;
@@ -17,10 +17,10 @@ namespace ControleEstacionamento.Services
             _tabelaPrecoService = tabelaPrecoService;
         }
 
-        // Registra a entrada do veÌculo
+        // Registra a entrada do ve√≠culo
         public void RegistrarEntrada(string placa, string modelo)
         {
-            // Verifica se veÌculo j· existe, se n„o, cria
+            // Verifica se ve√≠culo j√° existe, se n√£o, cria
             var veiculo = _context.Veiculos.Find(placa);
             if (veiculo == null)
             {
@@ -28,14 +28,14 @@ namespace ControleEstacionamento.Services
                 _context.Veiculos.Add(veiculo);
             }
 
-            // Verifica se j· existe uma entrada sem saÌda para o veÌculo
+            // Verifica se j√° existe uma entrada sem sa√≠da para o ve√≠culo
             var entradaAberta = _context.Estacionamentos
                 .Where(e => e.PlacaVeiculo == placa && e.DataSaida == null)
                 .FirstOrDefault();
 
             if (entradaAberta != null)
             {
-                throw new InvalidOperationException("VeÌculo j· est· dentro do estacionamento.");
+                throw new InvalidOperationException("Ve√≠culo j√° est√° dentro do estacionamento.");
             }
 
             // Registra nova entrada
@@ -58,7 +58,7 @@ namespace ControleEstacionamento.Services
 
             if (estacionamento == null)
             {
-                throw new InvalidOperationException("VeÌculo n„o est· dentro do estacionamento.");
+                throw new InvalidOperationException("Ve√≠culo n√£o est√° dentro do estacionamento.");
             }
 
             estacionamento.DataSaida = DateTime.Now;
@@ -66,7 +66,7 @@ namespace ControleEstacionamento.Services
             var tabelaPreco = _tabelaPrecoService.GetTabelaPrecoPorData(estacionamento.DataEntrada);
             if (tabelaPreco == null)
             {
-                throw new InvalidOperationException("Tabela de preÁos n„o configurada para a data de entrada.");
+                throw new InvalidOperationException("Tabela de pre√ßos n√£o configurada para a data de entrada.");
             }
 
             estacionamento.ValorPago = CalcularValor(estacionamento.DataEntrada, estacionamento.DataSaida.Value, tabelaPreco);
@@ -79,41 +79,36 @@ namespace ControleEstacionamento.Services
         private decimal CalcularValor(DateTime entrada, DateTime saida, TabelaPreco tabela)
         {
             var tempoTotal = saida - entrada;
-            var minutos = tempoTotal.TotalMinutes;
+            var minutosTotais = (int)tempoTotal.TotalMinutes;
 
-            if (minutos <= 30)
+            // At√© 30 minutos ‚Üí metade da primeira hora
+            if (minutosTotais <= 30)
             {
                 return tabela.ValorHoraInicial / 2;
             }
 
-            // Calcula horas totais arredondando para cima considerando toler‚ncia de 10 minutos por hora
-            // Exemplo: 1h10min = 1 hora cobrada, 1h15min = 2 horas cobradas
+            // Calcula total de horas inteiras e minutos restantes
+            int horasInteiras = minutosTotais / 60;
+            int minutosRestantes = minutosTotais % 60;
 
-            // Calcula horas inteiras e minutos restantes
-            int horas = (int)tempoTotal.TotalHours;
-            int minutosRestantes = tempoTotal.Minutes;
-
-            // Aplica toler‚ncia: se minutosRestantes <= 10, n„o conta hora adicional
-            // se minutosRestantes > 10, conta como hora adicional
-            int horasAdicionais = 0;
+            // Aplica toler√¢ncia de 10 minutos
+            int horasCobradas = horasInteiras;
             if (minutosRestantes > 10)
             {
-                horasAdicionais = 1;
+                horasCobradas++;
             }
 
-            int totalHorasCobradas = horas + horasAdicionais;
-
-            // O valor È: valor da hora inicial + (horas adicionais * valor hora adicional)
-            // Se totalHorasCobradas == 0 (menos de 1h), cobra valor da hora inicial
-            if (totalHorasCobradas == 0)
+            // Se n√£o chegou a 1h cheia mas passou de 30min, cobra 1h
+            if (horasCobradas == 0)
             {
-                totalHorasCobradas = 1;
+                horasCobradas = 1;
             }
 
+            // Valor final = hora inicial + adicionais
             decimal valor = tabela.ValorHoraInicial;
-            if (totalHorasCobradas > 1)
+            if (horasCobradas > 1)
             {
-                valor += (totalHorasCobradas - 1) * tabela.ValorHoraAdicional;
+                valor += (horasCobradas - 1) * tabela.ValorHoraAdicional;
             }
 
             return valor;
