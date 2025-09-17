@@ -12,33 +12,30 @@ namespace ControleEstacionamento.Controllers
     {
         private readonly EstacionamentoContext _context;
         private readonly TabelaPrecoService _tabelaPrecoService;
+        private readonly EstacionamentoService _estacionamentoService;
 
-        public EstacionamentoMvcController(EstacionamentoContext context, TabelaPrecoService tabelaPrecoService)
+        public EstacionamentoMvcController(EstacionamentoContext context, TabelaPrecoService tabelaPrecoService, EstacionamentoService estacionamentoService)
         {
             _context = context;
             _tabelaPrecoService = tabelaPrecoService;
+            _estacionamentoService = estacionamentoService;
         }
 
         public IActionResult Index()
         {
-            // Busca todas as entradas (abertas e fechadas)
             var estacionamentos = _context.Estacionamentos
                 .OrderByDescending(e => e.DataEntrada)
                 .ToList();
 
-            // Monta uma lista de view models para a view
             var model = estacionamentos.Select(e =>
             {
                 DateTime dataSaida = e.DataSaida ?? DateTime.Now;
                 TimeSpan duracao = dataSaida - e.DataEntrada;
 
-                // Busca tabela de preço válida para a data de entrada
                 var tabelaPreco = _tabelaPrecoService.GetTabelaPrecoPorData(e.DataEntrada);
 
-                // Calcula tempo cobrado em horas conforme regra
                 int tempoCobradoHoras = CalcularTempoCobradoHoras(e.DataEntrada, e.DataSaida);
 
-                // Calcula valor a pagar conforme regra
                 decimal? valorAPagar = null;
                 if (e.DataSaida.HasValue && tabelaPreco != null)
                 {
@@ -47,7 +44,9 @@ namespace ControleEstacionamento.Controllers
 
                 return new EstacionamentoViewModel
                 {
+                    Id = e.Id,
                     Placa = e.PlacaVeiculo,
+                    Modelo = e.Veiculo?.Modelo,
                     HorarioEntrada = e.DataEntrada,
                     HorarioSaida = e.DataSaida,
                     Duracao = duracao,
@@ -61,7 +60,46 @@ namespace ControleEstacionamento.Controllers
             return View(model);
         }
 
-        // Método para calcular tempo cobrado em horas conforme regra da tolerância
+        [HttpPost]
+        public IActionResult RegistrarEntrada([FromForm] string placa, [FromForm] string modelo)
+        {
+            try
+            {
+                _estacionamentoService.RegistrarEntrada(placa, modelo);
+                return RedirectToAction("Index");
+            }
+            catch (Exception ex)
+            {
+                TempData["ErroEntrada"] = ex.Message;
+                return RedirectToAction("Index");
+            }
+        }
+
+        [HttpPost]
+        public IActionResult RegistrarSaida([FromForm] int estacionamentoId)
+        {
+            try
+            {
+                var estacionamento = _context.Estacionamentos.Find(estacionamentoId);
+                if (estacionamento == null)
+                {
+                    TempData["ErroSaida"] = "Estacionamento não encontrado.";
+                    return RedirectToAction("Index");
+                }
+
+                var valor = _estacionamentoService.RegistrarSaida(estacionamento.PlacaVeiculo);
+                TempData["ValorPago"] = valor;
+                TempData["PlacaSaida"] = estacionamento.PlacaVeiculo;
+                TempData["ModeloSaida"] = estacionamento.Veiculo?.Modelo;
+                return RedirectToAction("Index");
+            }
+            catch (Exception ex)
+            {
+                TempData["ErroSaida"] = ex.Message;
+                return RedirectToAction("Index");
+            }
+        }
+
         private int CalcularTempoCobradoHoras(DateTime entrada, DateTime? saida)
         {
             if (!saida.HasValue)
@@ -71,7 +109,7 @@ namespace ControleEstacionamento.Controllers
             var minutos = tempoTotal.TotalMinutes;
 
             if (minutos <= 30)
-                return 1; // cobra meia hora, mas para exibir consideramos 1 hora cobrada
+                return 1;
 
             int horas = (int)tempoTotal.TotalHours;
             int minutosRestantes = tempoTotal.Minutes;
@@ -86,7 +124,6 @@ namespace ControleEstacionamento.Controllers
             return totalHoras;
         }
 
-        // Método para calcular valor conforme regra (mesmo da service)
         private decimal CalcularValor(DateTime entrada, DateTime saida, TabelaPreco tabela)
         {
             var tempoTotal = saida - entrada;
@@ -117,10 +154,11 @@ namespace ControleEstacionamento.Controllers
         }
     }
 
-    // ViewModel para a view
     public class EstacionamentoViewModel
     {
+        public int Id { get; set; }
         public string Placa { get; set; }
+        public string Modelo { get; set; }
         public DateTime HorarioEntrada { get; set; }
         public DateTime? HorarioSaida { get; set; }
         public TimeSpan Duracao { get; set; }

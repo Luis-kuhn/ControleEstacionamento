@@ -24,6 +24,11 @@ builder.Services.AddScoped<EstacionamentoService>();
 
 var app = builder.Build();
 
+app.MapControllerRoute(
+    name: "estacionamento",
+    pattern: "",
+    defaults: new { controller = "EstacionamentoMvc", action = "Index" });
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -44,8 +49,6 @@ app.UseRouting();
 
 app.UseAuthorization();
 
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+
 
 app.Run();
