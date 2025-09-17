@@ -1,22 +1,40 @@
 using ControleEstacionamento.Data;
 using Microsoft.EntityFrameworkCore;
+using ControleEstacionamento.Services;
+using Microsoft.OpenApi.Models;  // Add this for Swagger
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
-// Adiciona o contexto do banco de dados com SQLite
+// Add Swagger services
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "ControleEstacionamento API", Version = "v1" });
+});
+
+// Add the database context with SQLite
 builder.Services.AddDbContext<EstacionamentoContext>(options =>
-    options.UseSqlite("Data Source=parking.db"));
+    options.UseSqlite("Data Source=estacionamento.db"));
+
+builder.Services.AddScoped<TabelaPrecoService>();
+builder.Services.AddScoped<EstacionamentoService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "ControleEstacionamento API V1");
+    });
+}
+else
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 

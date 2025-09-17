@@ -14,7 +14,6 @@ namespace ControleEstacionamento.Services
             _context = context;
         }
 
-        // Busca a tabela de preços válida para a data informada
         public TabelaPreco GetTabelaPrecoPorData(DateTime data)
         {
             return _context.TabelaPrecos
